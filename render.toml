@@ -1,0 +1,22 @@
+[build]
+  environment = "python-3.10"
+  
+[start]
+  command = "python server.py"
+  
+[dependencies]
+  runtime = "python-3.10"
+  packages = [
+    "libopenblas-dev",
+    "liblapack-dev",
+    "libgl1-mesa-glx",
+    "libglib2.0-0",
+    "libx11-6",
+    "libxext6",
+    "libxrender1",
+    "libxinerama1",
+    "libxi6",
+    "mesa-common-dev",
+    "libegl1-mesa",
+    "libegl1-mesa-dev"
+  ]

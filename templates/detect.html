@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Analysis - STCA Net</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Load FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container nav-content">
+            <a href="/" class="brand">🛡️ STCA-Net</a>
+            <div class="nav-links">
+                <a href="/detect" class="active">Scan Video</a>
+                <a href="/image-detect">Scan Image</a>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <div class="container text-center">
+            <h1 class="mb-4 text-center">Video Deepfake Scanner</h1>
+            <p class="text-muted mb-4">Upload a video (MP4/AVI) to let STCA-Net search for spatio-temporal inconsistencies.</p>
+
+            {% if error %}
+            <div style="color: var(--danger-color); font-weight: bold; margin-bottom: 1rem;">
+                <i class="fas fa-exclamation-circle"></i> {{ error }}
+            </div>
+            {% endif %}
+
+            {% if data %}
+            <!-- Results View -->
+            <div class="card result-box">
+                <h2>Forensic Analysis Complete</h2>
+                <div class="details">Model Used: {{ data.model_used }}</div>
+                
+                <div class="result-badge {{ 'real' if data.prediction == 'REAL' else 'fake' }} mt-4">
+                    {{ data.prediction }}
+                </div>
+                
+                <p>Confidence: <strong>{{ data.confidence }}%</strong></p>
+                <div class="confidence-bar-bg">
+                    <div class="confidence-fill" style="width: {{ data.confidence }}%;"></div>
+                </div>
+
+                <div class="details" style="margin-top: 1.5rem; text-align: left;">
+                    <p><i class="fas fa-film" style="width: 20px; color: var(--primary-color);"></i> Analyzed {{ data.frames_analyzed }} face frames in {{ data.processing_time }} seconds</p>
+                    <p><i class="fas fa-wave-square" style="width: 20px; color: var(--primary-color);"></i> Frequency Analysis Score: <strong>{{ data.frequency_score }}%</strong>
+                        <span class="text-muted" style="font-size: 0.85em;"> (higher = more likely AI-generated)</span>
+                    </p>
+                </div>
+                
+                <a href="/detect" class="btn btn-secondary mt-4">Scan Another Video</a>
+            </div>
+            {% else %}
+            <!-- Upload View -->
+            <div class="card">
+                <form id="uploadForm" action="/detect" method="POST" enctype="multipart/form-data">
+                    <div class="upload-area" id="uploadBox" onclick="document.getElementById('videoFile').click()">
+                        <div class="upload-icon">
+                            <i class="fas fa-video"></i>
+                        </div>
+                        <h3>Upload Video</h3>
+                        <p class="text-muted mt-4">Click here to browse files</p>
+                    </div>
+                    
+                    <input type="file" id="videoFile" name="video" class="file-input" accept="video/mp4,video/avi,video/quicktime">
+                    
+                    <button type="submit" id="submitBtn" class="btn btn-primary hidden" style="width: 100%;">
+                        Start Analysis
+                    </button>
+                    
+                    <div id="loadingState" class="hidden mt-4">
+                        <div class="loader"></div>
+                        <p>Extracting frames and running STCA-Net cross-attention...</p>
+                        <p class="text-muted" style="font-size: 0.9em;">This handles everything on CPU. It may take 15-30 seconds.</p>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>STCA-Net &copy; 2026</p>
+        </div>
+    </footer>
+
+    <script>
+        const fileInput = document.getElementById('videoFile');
+        const uploadBox = document.getElementById('uploadBox');
+        const submitBtn = document.getElementById('submitBtn');
+        const uploadForm = document.getElementById('uploadForm');
+        const loadingState = document.getElementById('loadingState');
+
+        // Show filename and submit button when file is selected
+        if (fileInput) {
+            fileInput.addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    const fileName = e.target.files[0].name;
+                    uploadBox.innerHTML = `
+                        <div class="upload-icon" style="color: var(--primary-color);">
+                            <i class="fas fa-file-video"></i>
+                        </div>
+                        <h3 style="color: var(--primary-color);">${fileName}</h3>
+                        <p class="text-muted mt-4">Ready for analysis</p>
+                    `;
+                    uploadBox.style.borderColor = 'var(--primary-color)';
+                    submitBtn.classList.remove('hidden');
+                }
+            });
+
+            // Show loading animation on submit
+            uploadForm.addEventListener('submit', function() {
+                uploadBox.classList.add('hidden');
+                submitBtn.classList.add('hidden');
+                loadingState.classList.remove('hidden');
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Analysis - STCA Net</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container nav-content">
+            <a href="/" class="brand">🛡️ STCA-Net</a>
+            <div class="nav-links">
+                <a href="/detect">Scan Video</a>
+                <a href="/image-detect" class="active">Scan Image</a>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <div class="container text-center">
+            <h1 class="mb-4 text-center">Image Deepfake Scanner</h1>
+            <p class="text-muted mb-4">Upload a high-quality photo to analyze pixel-level and context-level artifacts.</p>
+
+            {% if error %}
+            <div style="color: var(--danger-color); font-weight: bold; margin-bottom: 1rem;">
+                <i class="fas fa-exclamation-circle"></i> {{ error }}
+            </div>
+            {% endif %}
+
+            {% if data %}
+            <!-- Results View -->
+            <div class="card result-box">
+                <h2>Forensic Analysis Complete</h2>
+                <div class="details">Model Used: {{ data.model_used }}</div>
+
+                {% if data.warning %}
+                <div style="background: rgba(255, 193, 7, 0.15); border: 1px solid rgba(255, 193, 7, 0.4); border-radius: 8px; padding: 1rem; margin: 1rem 0; text-align: left;">
+                    <i class="fas fa-exclamation-triangle" style="color: #ffc107; margin-right: 0.5rem;"></i>
+                    <strong style="color: #ffc107;">Warning:</strong>
+                    <span style="color: var(--text-secondary);">{{ data.warning }}</span>
+                </div>
+                {% endif %}
+                
+                <div class="result-badge {{ 'real' if data.prediction == 'REAL' else 'fake' }} mt-4">
+                    {{ data.prediction }}
+                </div>
+                
+                <p>Confidence: <strong>{{ data.confidence }}%</strong></p>
+                <div class="confidence-bar-bg">
+                    <div class="confidence-fill" style="width: {{ data.confidence }}%;"></div>
+                </div>
+
+                <div class="details" style="margin-top: 1.5rem; text-align: left;">
+                    <p><i class="fas fa-clock" style="width: 20px; color: var(--primary-color);"></i> Processed in {{ data.processing_time }} seconds (CPU)</p>
+                    <p><i class="fas fa-wave-square" style="width: 20px; color: var(--primary-color);"></i> Frequency Analysis Score: <strong>{{ data.frequency_score }}%</strong>
+                        <span class="text-muted" style="font-size: 0.85em;"> (higher = more likely AI-generated)</span>
+                    </p>
+                    <p><i class="fas fa-user" style="width: 20px; color: var(--primary-color);"></i> Face Detected: 
+                        {% if data.face_detected %}
+                            <span style="color: var(--success-color);"><strong>Yes</strong></span>
+                        {% else %}
+                            <span style="color: var(--danger-color);"><strong>No</strong></span>
+                            <span class="text-muted" style="font-size: 0.85em;"> (center crop used as fallback)</span>
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <a href="/image-detect" class="btn btn-secondary mt-4">Scan Another Image</a>
+            </div>
+            {% else %}
+            <!-- Upload View -->
+            <div class="card">
+                <form id="uploadForm" action="/image-detect" method="POST" enctype="multipart/form-data">
+                    <div class="upload-area" id="uploadBox" onclick="document.getElementById('imageFile').click()">
+                        <div class="upload-icon">
+                            <i class="fas fa-image"></i>
+                        </div>
+                        <h3>Upload Image</h3>
+                        <p class="text-muted mt-4">Click here to browse files (JPG/PNG)</p>
+                    </div>
+                    
+                    <input type="file" id="imageFile" name="image" class="file-input" accept="image/jpeg,image/png">
+                    
+                    <button type="submit" id="submitBtn" class="btn btn-primary hidden" style="width: 100%;">
+                        Start Analysis
+                    </button>
+                    
+                    <div id="loadingState" class="hidden mt-4">
+                        <div class="loader"></div>
+                        <p>Passing image through STCA-Net...</p>
+                        <p class="text-muted" style="font-size: 0.9em;">This is usually instant for single images.</p>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>STCA-Net &copy; 2026</p>
+        </div>
+    </footer>
+
+    <script>
+        const fileInput = document.getElementById('imageFile');
+        const uploadBox = document.getElementById('uploadBox');
+        const submitBtn = document.getElementById('submitBtn');
+        const uploadForm = document.getElementById('uploadForm');
+        const loadingState = document.getElementById('loadingState');
+
+        // Show filename and submit button when file is selected
+        if (fileInput) {
+            fileInput.addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    const fileName = e.target.files[0].name;
+                    uploadBox.innerHTML = `
+                        <div class="upload-icon" style="color: var(--primary-color);">
+                            <i class="fas fa-file-image"></i>
+                        </div>
+                        <h3 style="color: var(--primary-color);">${fileName}</h3>
+                        <p class="text-muted mt-4">Ready for analysis</p>
+                    `;
+                    uploadBox.style.borderColor = 'var(--primary-color)';
+                    submitBtn.classList.remove('hidden');
+                }
+            });
+
+            // Show loading animation on submit
+            uploadForm.addEventListener('submit', function() {
+                uploadBox.classList.add('hidden');
+                submitBtn.classList.add('hidden');
+                loadingState.classList.remove('hidden');
+            });
+        }
+    </script>
+</body>
+</html>

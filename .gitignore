@@ -1,0 +1,116 @@
+# ===========================
+# Python
+# ===========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ===========================
+# Virtual Environments
+# ===========================
+.venv/
+venv/
+venv2/
+venv310/
+ENV/
+env/
+.env
+
+# ===========================
+# Jupyter Notebooks
+# ===========================
+.ipynb_checkpoints/
+*.ipynb
+
+# ===========================
+# Model Files (too large for GitHub)
+# ===========================
+model/
+*.pt
+*.pth
+*.h5
+*.onnx
+*.pkl
+
+# ===========================
+# Database
+# ===========================
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# ===========================
+# Uploaded Files
+# ===========================
+Uploaded_Files/
+
+# ===========================
+# IDE / Editor
+# ===========================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# ===========================
+# OS Generated
+# ===========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ===========================
+# Logs & Temp Files
+# ===========================
+*.log
+logs/
+tmp/
+temp/
+
+# ===========================
+# Wheel files
+# ===========================
+*.whl
+
+# ===========================
+# Deployment / Cloud
+# ===========================
+.vercel/
+
+# ===========================
+# Docker (optional - uncomment if needed)
+# ===========================
+# .dockerignore
+# Dockerfile
+
+# ===========================
+# Admin datasets (if large)
+# ===========================
+Admin/datasets/
