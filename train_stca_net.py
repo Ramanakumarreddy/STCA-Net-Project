@@ -267,7 +267,7 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
             if val_epoch_acc > best_acc:
                 best_acc = val_epoch_acc
                 torch.save(model.state_dict(), save_path)
-                print(f"⭐ New best model saved to {save_path}!")
+                print(f"* New best model saved to {save_path}!")
             
             # Early Stopping check
             if val_epoch_loss < best_val_loss:
@@ -275,9 +275,9 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
                 epochs_no_improve = 0
             else:
                 epochs_no_improve += 1
-                print(f'⏳ No improvement for {epochs_no_improve}/{patience} epochs.')
+                print(f'Wait: No improvement for {epochs_no_improve}/{patience} epochs.')
                 if epochs_no_improve >= patience:
-                    print(f'\n🛑 Early stopping triggered after {epoch+1} epochs!')
+                    print(f'\nSTOP: Early stopping triggered after {epoch+1} epochs!')
                     break
         else:
             # If no validation set, save every epoch
@@ -297,11 +297,11 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0
         f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
         
-        print(f'\n📊 Confusion Matrix (on validation set):')
-        print(f'  True Positives  (Real→Real): {tp}')
-        print(f'  True Negatives  (Fake→Fake): {tn}')
-        print(f'  False Positives (Fake→Real): {fp}')
-        print(f'  False Negatives (Real→Fake): {fn}')
+        print(f'\nConfusion Matrix (on validation set):')
+        print(f'  True Positives  (Real->Real): {tp}')
+        print(f'  True Negatives  (Fake->Fake): {tn}')
+        print(f'  False Positives (Fake->Real): {fp}')
+        print(f'  False Negatives (Real->Fake): {fn}')
         print(f'\n  Accuracy:  {accuracy:.4f}')
         print(f'  Precision: {precision:.4f}')
         print(f'  Recall:    {recall:.4f}')
@@ -326,6 +326,7 @@ if __name__ == '__main__':
     parser.add_argument('--patience', type=int, default=5, help='Early stopping patience (epochs without improvement)')
     parser.add_argument('--scheduler', type=str, default='cosine', choices=['cosine', 'plateau'],
                         help='LR scheduler: cosine (CosineAnnealingWarmRestarts) or plateau (ReduceLROnPlateau)')
+    parser.add_argument('--resume-weights', type=str, default=None, help='Path to weights to resume training from')
     args = parser.parse_args()
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -368,6 +369,10 @@ if __name__ == '__main__':
     
     print("Initializing STCA-Net architecture...")
     model = STCANet().to(device)
+    
+    if args.resume_weights and os.path.exists(args.resume_weights):
+        print(f"Resuming training from weights: {args.resume_weights}")
+        model.load_state_dict(torch.load(args.resume_weights, map_location=device))
     
     # Unfreeze last N layers of MobileNet for domain adaptation
     # MobileNet features has ~13 sequential blocks

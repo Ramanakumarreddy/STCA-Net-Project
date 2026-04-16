@@ -40,15 +40,31 @@ env/
 *.ipynb
 
 # ===========================
+# Datasets
+# ===========================
+dataset/
+data/
+Celeb-DF-v2/
+FaceForensics++/
+DFDC/
+*.zip
+*.tar
+*.tar.gz
+*.rar
+
+# ===========================
 # Large Files & Models
 # ===========================
+# Ignore trained models/weights
 model/
-models/*.pt
+models/
+checkpoints/
+*.pt
 *.pth
 *.h5
 *.onnx
 *.pkl
-dataset/
+*.ckpt
 
 # ===========================
 # Database
@@ -62,6 +78,7 @@ instance/
 # Uploaded & Temporary Files
 # ===========================
 Uploaded_Files/
+test_dataset/
 test_images/
 tmp/
 temp/
