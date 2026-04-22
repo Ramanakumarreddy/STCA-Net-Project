@@ -82,19 +82,14 @@ class RandomGaussianBlur:
         return img
 
 
-class SimpleDeepfakeDataset(Dataset):
+class VideoSequenceDataset(Dataset):
     """
-    Loads images from a folder structure:
-    root_dir/
-      real/
-        img1.jpg
-        ...
-      fake/
-        img1.jpg
-        ...
+    Loads sequences of frames grouped by video ID.
+    Expects frames named like 'videoID_frame_0000.jpg'.
     """
-    def __init__(self, root_dir, transform=None, max_samples=None):
+    def __init__(self, root_dir, seq_len=5, transform=None, max_samples=None):
         self.root_dir = root_dir
+        self.seq_len = seq_len
         self.transform = transform
         self.samples = []
         
@@ -107,7 +102,6 @@ class SimpleDeepfakeDataset(Dataset):
         self._load_class(fake_dir, 0, fake_limit)
         self._load_class(real_dir, 1, real_limit)
         
-        # Shuffle to mix classes
         random.shuffle(self.samples)
             
     def _load_class(self, dir_path, label, limit):
@@ -115,39 +109,56 @@ class SimpleDeepfakeDataset(Dataset):
             print(f"Warning: Directory not found - {dir_path}")
             return
             
-        count = 0
+        from collections import defaultdict
+        video_frames = defaultdict(list)
+        
         files = sorted(os.listdir(dir_path))
         for fname in files:
             if fname.lower().endswith(('.png', '.jpg', '.jpeg')):
-                self.samples.append((os.path.join(dir_path, fname), label))
-                count += 1
-                if limit and count >= limit:
-                    break
+                vid_id = fname.split('_frame_')[0]
+                video_frames[vid_id].append(os.path.join(dir_path, fname))
+                
+        count = 0
+        for vid_id, frames in video_frames.items():
+            if len(frames) >= self.seq_len:
+                seq = frames[:self.seq_len]
+            else:
+                seq = frames + [frames[-1]] * (self.seq_len - len(frames))
+                
+            self.samples.append((seq, label))
+            count += 1
+            if limit and count >= limit:
+                break
                     
     def __len__(self):
         return len(self.samples)
         
     def __getitem__(self, idx):
-        img_path, label = self.samples[idx]
-        try:
-            image = Image.open(img_path).convert('RGB')
-            if self.transform:
-                image = self.transform(image)
-            return image, label
-        except Exception as e:
-            # Return a blank tensor and the label if image is corrupted
-            print(f"Error loading {img_path}: {e}")
-            return torch.zeros((3, 224, 224)), label
+        frame_paths, label = self.samples[idx]
+        frames = []
+        
+        for img_path in frame_paths:
+            try:
+                image = Image.open(img_path).convert('RGB')
+                if self.transform:
+                    image = self.transform(image)
+                frames.append(image)
+            except Exception as e:
+                print(f"Error loading {img_path}: {e}")
+                frames.append(torch.zeros((3, 384, 384)))
+                
+        # Stack into (T, C, H, W)
+        return torch.stack(frames), label
 
 
 def get_transforms():
     """
-    Enhanced augmentation pipeline:
+    Enhanced augmentation pipeline for 384x384 inputs:
     - Advanced Color Jitter and Resized Crops
     - Stronger JPEG / Blur / Noise for better generalization
     """
     train_transform = transforms.Compose([
-        transforms.RandomResizedCrop(224, scale=(0.8, 1.0)), # Scale invariance
+        transforms.RandomResizedCrop(384, scale=(0.8, 1.0)), # Scale invariance
         JPEGCompression(quality_range=(20, 90)),        # Increased compression simulation
         RandomGaussianBlur(radius_range=(0.5, 3.0)),    # Stronger blur
         transforms.RandomHorizontalFlip(),
@@ -160,7 +171,7 @@ def get_transforms():
     ])
     
     val_transform = transforms.Compose([
-        transforms.Resize((224, 224)),
+        transforms.Resize((384, 384)),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
@@ -264,7 +275,7 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
                 current_lr = optimizer.param_groups[0]['lr']
                 print(f'Current LR: {current_lr:.6f}')
             
-            if val_epoch_acc > best_acc:
+            if val_epoch_acc >= best_acc:
                 best_acc = val_epoch_acc
                 torch.save(model.state_dict(), save_path)
                 print(f"* New best model saved to {save_path}!")
@@ -318,7 +329,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train STCA-Net for Deepfake Detection")
     parser.add_argument('--dataset', type=str, default='dataset/140k', help='Path to dataset directory containing real/fake folders')
     parser.add_argument('--epochs', type=int, default=15, help='Number of epochs to train')
-    parser.add_argument('--batch-size', type=int, default=16, help='Batch size for training')
+    parser.add_argument('--batch-size', type=int, default=4, help='Batch size for training (lowered for video sequences)')
+    parser.add_argument('--seq-len', type=int, default=5, help='Number of frames per video sequence')
     parser.add_argument('--samples', type=int, default=10000, help='Max samples to load (0 = all)')
     parser.add_argument('--lr', type=float, default=0.0001, help='Learning rate')
     parser.add_argument('--label-smoothing', type=float, default=0.1, help='Label smoothing factor')
@@ -335,8 +347,8 @@ if __name__ == '__main__':
     train_transform, val_transform = get_transforms()
     
     max_samples = args.samples if args.samples > 0 else None
-    print(f"Loading dataset from: {args.dataset} (Max {max_samples or 'ALL'} samples)...")
-    dataset = SimpleDeepfakeDataset(args.dataset, transform=train_transform, max_samples=max_samples)
+    print(f"Loading dataset from: {args.dataset} (Max {max_samples or 'ALL'} sequences)...")
+    dataset = VideoSequenceDataset(args.dataset, seq_len=args.seq_len, transform=train_transform, max_samples=max_samples)
     
     if len(dataset) == 0:
         print("Error: Dataset is empty. Check your paths.")

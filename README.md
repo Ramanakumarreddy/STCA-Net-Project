@@ -13,7 +13,7 @@ A novel, lightweight deepfake detection system utilizing a **Spatio-Temporal Cro
 ## 📁 Repository Structure
 
 ```
-STCA-Net-Project/
+STCA-Net-Project -og/
 ├── app.py                     # Main Flask web server
 ├── train_stca_net.py          # Script to train/finetune the model
 ├── requirements.txt           # Python dependencies (CPU/CUDA)
@@ -38,7 +38,7 @@ Requires Python 3.10+ (Tested up to 3.13).
 ```bash
 # Clone the repository
 git clone https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
-cd STCA-Net-Project
+cd "STCA-Net-Project -og"
 
 # Create and activate a virtual environment
 python -m venv venv

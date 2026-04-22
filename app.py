@@ -17,10 +17,13 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'stca_net_super_secret_key'
 app.config['UPLOAD_FOLDER'] = 'Uploaded_Files'
+app.config['IMAGE_UPLOAD_FOLDER'] = os.path.join('Uploaded_Files', 'images')
+app.config['VIDEO_UPLOAD_FOLDER'] = os.path.join('Uploaded_Files', 'videos')
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500 MB max upload
 
-# Ensure upload directory exists
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+# Ensure upload directories exist
+os.makedirs(app.config['IMAGE_UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['VIDEO_UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs('static', exist_ok=True) # Ensure static dir exists
 
 # Global Model Definition (Lazy Load ready)
@@ -66,7 +69,7 @@ def detect_video():
         return render_template('detect.html', error="Invalid format. Please use MP4, AVI, or MOV.")
         
     filename = secure_filename(video.filename)
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    filepath = os.path.join(app.config['VIDEO_UPLOAD_FOLDER'], filename)
     video.save(filepath)
     
     try:
@@ -88,14 +91,15 @@ def detect_video():
         
         logger.info(f"Video Result: {result['prediction']} ({result['confidence']}%) in {processing_time}s")
         
-        # Clean up video
-        os.remove(filepath)
+        # Save prediction result alongside the video
+        import json
+        result_filepath = os.path.join(app.config['VIDEO_UPLOAD_FOLDER'], f"{filename}_prediction.json")
+        with open(result_filepath, 'w') as f:
+            json.dump(result, f, indent=4)
         
         return render_template('detect.html', data=result)
         
     except Exception as e:
-        if os.path.exists(filepath):
-            os.remove(filepath)
         logger.error(f"Video processing failed: {str(e)}")
         return render_template('detect.html', error=str(e))
 
@@ -115,7 +119,7 @@ def detect_image():
         return render_template('image.html', error="Invalid format. Please use JPG or PNG.")
         
     filename = secure_filename(image.filename)
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    filepath = os.path.join(app.config['IMAGE_UPLOAD_FOLDER'], filename)
     image.save(filepath)
     
     try:
@@ -131,14 +135,16 @@ def detect_image():
         
         logger.info(f"Image Result: {result['prediction']} ({result['confidence']}%) in {processing_time}s")
         
-        # Clean up image
-        os.remove(filepath)
+        # Save prediction result alongside the image
+        import json
+        save_result = {k: v for k, v in result.items() if k != 'attention_map'}
+        result_filepath = os.path.join(app.config['IMAGE_UPLOAD_FOLDER'], f"{filename}_prediction.json")
+        with open(result_filepath, 'w') as f:
+            json.dump(save_result, f, indent=4)
         
         return render_template('image.html', data=result)
         
     except Exception as e:
-        if os.path.exists(filepath):
-            os.remove(filepath)
         logger.error(f"Image processing failed: {str(e)}")
         return render_template('image.html', error=str(e))
 

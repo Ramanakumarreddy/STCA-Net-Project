@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 # Setup standard ImageNet normalization since MobileNet and ViT both expect it
 preprocess_transform = transforms.Compose([
-    transforms.Resize((224, 224)),
+    transforms.Resize((384, 384)),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
@@ -347,34 +347,35 @@ def predict_image(model, image_path, device='cpu'):
 
 def predict_video_frames(model, frames, device='cpu'):
     """
-    Takes a list of PIL Images (extracted frames), predicts each one, 
-    and aggregates the overall prediction.
+    Takes a list of PIL Images (extracted frames), passes them as a temporal sequence 
+    to the STCA-Net model, and combines with frequency analysis.
     """
     if not frames:
         raise ValueError("No frames provided for prediction.")
         
-    fake_scores = []
-    real_scores = []
     freq_scores = []
+    tensor_frames = []
+    
+    for frame in frames:
+        # Compute frequency score for each frame individually
+        freq_scores.append(compute_frequency_score(frame))
+        # Transform for neural network
+        tensor_frames.append(preprocess_transform(frame))
+        
+    avg_freq = sum(freq_scores) / len(freq_scores)
+    
+    # Stack frames into a single sequence batch (1, T, C, H, W)
+    input_sequence = torch.stack(tensor_frames).unsqueeze(0).to(device)
     
     model.eval()
     with torch.no_grad():
-        for frame in frames:
-            # frame is a PIL Image (already face-cropped from video_processing)
-            input_tensor = preprocess_transform(frame).unsqueeze(0).to(device)
-            output, _ = model(input_tensor)
-            
-            probabilities = torch.nn.functional.softmax(output[0], dim=0)
-            fake_scores.append(probabilities[0].item())
-            real_scores.append(probabilities[1].item())
-            
-            # Also compute frequency score for each frame
-            freq_scores.append(compute_frequency_score(frame))
-            
-    # Aggregate neural network scores (Average)
-    avg_nn_fake = sum(fake_scores) / len(fake_scores)
-    avg_nn_real = sum(real_scores) / len(real_scores)
-    avg_freq = sum(freq_scores) / len(freq_scores)
+        # Pass the entire sequence to the spatio-temporal model
+        output, _ = model(input_sequence)
+        
+        # output is shape (1, 2)
+        probabilities = torch.nn.functional.softmax(output[0], dim=0)
+        avg_nn_fake = probabilities[0].item()
+        avg_nn_real = probabilities[1].item()
     
     # Combine with frequency analysis (same weighting as image)
     nn_weight = 0.70

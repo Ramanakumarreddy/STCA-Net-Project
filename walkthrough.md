@@ -57,11 +57,11 @@ graph TD
 
 | Step | Action | Route |
 |------|--------|-------|
-| 1 | User visits the landing page | `GET /` → [home.html](file:///c:/Users/boddu/Downloads/dfd%20%281%29/templates/home.html) |
+| 1 | User visits the landing page | `GET /` → [home.html](file:///c:/Users/boddu/OneDrive/Desktop/STCA-Net-Project%20-og/templates/home.html) |
 | 2 | User signs up / logs in | `POST /signup` or `POST /login` |
 | 3 | User uploads a **video** | `POST /detect` |
 | 4 | User uploads an **image** | `POST /image-detect` |
-| 5 | Results displayed with charts | Same page, with [data](file:///c:/Users/boddu/Downloads/dfd%20%281%29/server.py#1216-1228) context |
+| 5 | Results displayed with charts | Same page, with [data](file:///c:/Users/boddu/OneDrive/Desktop/STCA-Net-Project%20-og/server.py#1216-1228) context |
 | 6 | Admin manages users & training | `GET /admin` |
 
 ### 2. Video Detection Pipeline (`/detect`)
@@ -101,7 +101,7 @@ flowchart LR
 
 ### 4. The DFModel Neural Network
 
-Defined in [server.py](file:///c:/Users/boddu/Downloads/dfd%20(1)/server.py#L1444-L1589) (class [DFModel](file:///c:/Users/boddu/Downloads/dfd%20%281%29/server.py#1445-1590)):
+Defined in [server.py](file:///c:/Users/boddu/OneDrive/Desktop/STCA-Net-Project%20-og/server.py#L1444-L1589) (class [DFModel](file:///c:/Users/boddu/OneDrive/Desktop/STCA-Net-Project%20-og/server.py#1445-1590)):
 
 ```
 Input Image(s) [B, seq, 3, H, W]
@@ -147,12 +147,12 @@ The app supports **two models** loaded simultaneously:
 
 | Model | File | Size | Notes |
 |-------|------|------|-------|
-| Basic | [model/df_model.pt](file:///c:/Users/boddu/Downloads/dfd%20%281%29/model/df_model.pt) | 216 MB | Original model |
-| Improved | [model/improved_df_model.pt](file:///c:/Users/boddu/Downloads/dfd%20%281%29/model/improved_df_model.pt) | 113 MB | Retrained model |
+| Basic | [model/df_model.pt](file:///c:/Users/boddu/OneDrive/Desktop/STCA-Net-Project%20-og/model/df_model.pt) | 216 MB | Original model |
+| Improved | [model/improved_df_model.pt](file:///c:/Users/boddu/OneDrive/Desktop/STCA-Net-Project%20-og/model/improved_df_model.pt) | 113 MB | Retrained model |
 
 - The **improved model** is preferred by default (auto-selection)
 - Users can switch via `/switch-model/<type>` API
-- Both share the same [DFModel](file:///c:/Users/boddu/Downloads/dfd%20%281%29/server.py#1445-1590) architecture
+- Both share the same [DFModel](file:///c:/Users/boddu/OneDrive/Desktop/STCA-Net-Project%20-og/server.py#1445-1590) architecture
 
 ### 6. Confidence & Visualization
 
@@ -172,21 +172,21 @@ After prediction, **7 charts** are generated using Matplotlib:
 
 | File | Purpose |
 |------|---------|
-| [server.py](file:///c:/Users/boddu/Downloads/dfd%20(1)/server.py) | Main Flask app — all routes, ML inference, chart generation (1874 lines) |
-| [models.py](file:///c:/Users/boddu/Downloads/dfd%20(1)/models.py) | SQLAlchemy [User](file:///c:/Users/boddu/Downloads/dfd%20%281%29/models.py#8-24) model with password hashing |
-| [advanced_training.py](file:///c:/Users/boddu/Downloads/dfd%20(1)/advanced_training.py) | Training script — [AdvancedDFModel](file:///c:/Users/boddu/Downloads/dfd%20%281%29/advanced_training.py#218-379), dataset loaders, Focal Loss, mixed precision |
-| [requirements.txt](file:///c:/Users/boddu/Downloads/dfd%20(1)/requirements.txt) | Dependencies: Flask, PyTorch, OpenCV, Matplotlib, etc. |
+| [server.py](file:///c:/Users/boddu/OneDrive/Desktop/STCA-Net-Project%20-og/server.py) | Main Flask app — all routes, ML inference, chart generation (1874 lines) |
+| [models.py](file:///c:/Users/boddu/OneDrive/Desktop/STCA-Net-Project%20-og/models.py) | SQLAlchemy [User](file:///c:/Users/boddu/OneDrive/Desktop/STCA-Net-Project%20-og/models.py#8-24) model with password hashing |
+| [advanced_training.py](file:///c:/Users/boddu/OneDrive/Desktop/STCA-Net-Project%20-og/advanced_training.py) | Training script — [AdvancedDFModel](file:///c:/Users/boddu/OneDrive/Desktop/STCA-Net-Project%20-og/advanced_training.py#218-379), dataset loaders, Focal Loss, mixed precision |
+| [requirements.txt](file:///c:/Users/boddu/OneDrive/Desktop/STCA-Net-Project%20-og/requirements.txt) | Dependencies: Flask, PyTorch, OpenCV, Matplotlib, etc. |
 
 ### Templates (HTML)
 
 | Template | Route | Function |
 |----------|-------|----------|
-| [home.html](file:///c:/Users/boddu/Downloads/dfd%20%281%29/templates/home.html) | `/` | Landing page |
-| [detect.html](file:///c:/Users/boddu/Downloads/dfd%20%281%29/templates/detect.html) | `/detect` | Video upload + results display |
-| [image.html](file:///c:/Users/boddu/Downloads/dfd%20%281%29/templates/image.html) | `/image-detect` | Image upload + results display |
-| [login.html](file:///c:/Users/boddu/Downloads/dfd%20%281%29/Admin/login.html) | `/login` | User login form |
-| [signup.html](file:///c:/Users/boddu/Downloads/dfd%20%281%29/templates/signup.html) | `/signup` | User registration |
-| [admin.html](file:///c:/Users/boddu/Downloads/dfd%20%281%29/templates/admin.html) | `/admin` | Admin dashboard (users, datasets, training) |
+| [home.html](file:///c:/Users/boddu/OneDrive/Desktop/STCA-Net-Project%20-og/templates/home.html) | `/` | Landing page |
+| [detect.html](file:///c:/Users/boddu/OneDrive/Desktop/STCA-Net-Project%20-og/templates/detect.html) | `/detect` | Video upload + results display |
+| [image.html](file:///c:/Users/boddu/OneDrive/Desktop/STCA-Net-Project%20-og/templates/image.html) | `/image-detect` | Image upload + results display |
+| [login.html](file:///c:/Users/boddu/OneDrive/Desktop/STCA-Net-Project%20-og/Admin/login.html) | `/login` | User login form |
+| [signup.html](file:///c:/Users/boddu/OneDrive/Desktop/STCA-Net-Project%20-og/templates/signup.html) | `/signup` | User registration |
+| [admin.html](file:///c:/Users/boddu/OneDrive/Desktop/STCA-Net-Project%20-og/templates/admin.html) | `/admin` | Admin dashboard (users, datasets, training) |
 | `privacy.html` | `/privacy` | Privacy policy |
 | `terms.html` | `/terms` | Terms of service |
 
