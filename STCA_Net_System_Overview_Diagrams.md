@@ -7,7 +7,7 @@
 
 ---
 
-## 📌 How to Preview These Diagrams
+## How to Preview These Diagrams
 
 All diagrams below use **Mermaid** syntax. To render them:
 
@@ -21,7 +21,7 @@ All diagrams below use **Mermaid** syntax. To render them:
 
 ---
 
-## 1. 🎯 Use Case Diagram
+## 1. Use Case Diagram
 
 ```mermaid
 %%{init: {"theme": "default"}}%%
@@ -67,7 +67,7 @@ graph LR
 
 ---
 
-## 2. 🏗️ System Architecture Overview
+## 2. System Architecture Overview
 
 ```mermaid
 flowchart TD
@@ -107,7 +107,7 @@ flowchart TD
 
 ---
 
-## 3. 🔄 Data Flow Diagram
+## 3. Data Flow Diagram
 
 ```mermaid
 flowchart LR
@@ -130,7 +130,7 @@ flowchart LR
 
 ---
 
-## 4. 🧩 Component Diagram
+## 4. Component Diagram
 
 ```mermaid
 flowchart TD
@@ -180,7 +180,7 @@ flowchart TD
 
 ---
 
-## 5. 🔁 Training Lifecycle Sequence
+## 5. Training Lifecycle Sequence
 
 ```mermaid
 sequenceDiagram
@@ -208,7 +208,7 @@ sequenceDiagram
 
 ---
 
-## 6. 🗂️ STCA Module Internal Design
+## 6. STCA Module Internal Design
 
 ```mermaid
 flowchart LR
@@ -240,7 +240,7 @@ flowchart LR
 
 ---
 
-## 7. 📊 System Entity Relationship (Conceptual)
+## 7.  System Entity Relationship (Conceptual)
 
 ```mermaid
 erDiagram
@@ -284,19 +284,3 @@ erDiagram
     CLIP ||--|| PREDICTION : "evaluated by"
 ```
 
----
-
-## 🛠️ Recommended Tools for Full Diagram Suite
-
-| Diagram Type | Best Tool |
-|---|---|
-| Use Case Diagram | [draw.io](https://draw.io) / [Lucidchart](https://lucidchart.com) |
-| Architecture Flowchart | Mermaid (this file) |
-| Sequence Diagram | Mermaid (this file) |
-| Class Diagram | [PlantUML](https://plantuml.com) |
-| ER Diagram | Mermaid (this file) |
-| Poster / Slide | PowerPoint / LaTeX Beamer |
-
----
-
-*Generated for STCA-Net Project — Ramanakumarreddy*
