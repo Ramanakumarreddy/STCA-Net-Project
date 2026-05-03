@@ -71,7 +71,7 @@ graph LR
 
 ```mermaid
 flowchart TD
-    A["🎥 Input Video Clip\n(RGB frames sequence)"]
+    A[" Input Video Clip\n(RGB frames sequence)"]
 
     subgraph Backbone["R(2+1)D Backbone Network"]
         B["2D Spatial Convolution\n(per frame)"]
@@ -79,8 +79,8 @@ flowchart TD
     end
 
     subgraph STCA_Module["STCA Attention Module"]
-        D["Spatial Attention\n🗺️ WHERE to look"]
-        E["Temporal Attention\n⏱️ WHEN to focus"]
+        D["Spatial Attention\n WHERE to look"]
+        E["Temporal Attention\n WHEN to focus"]
         F["Feature Fusion\n(Spatial × Temporal)"]
     end
 
@@ -111,12 +111,12 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    V["🎞️ Raw Video\n(.mp4 / .avi)"]
-    P["📦 Preprocessing\n• Frame Sampling\n• Resize & Normalize\n• Clip Formation"]
-    FE["🧠 Feature Extractor\nR(2+1)D Layers"]
-    ATT["🔍 STCA Module\n• Spatial Branch\n• Temporal Branch"]
-    CLS["🏷️ Classifier\nFC + Softmax"]
-    OUT["✅ Predicted Action\ne.g. Running, Jumping..."]
+    V["Raw Video\n(.mp4 / .avi)"]
+    P["Preprocessing\n• Frame Sampling\n• Resize & Normalize\n• Clip Formation"]
+    FE["Feature Extractor\nR(2+1)D Layers"]
+    ATT["STCA Module\n• Spatial Branch\n• Temporal Branch"]
+    CLS["Classifier\nFC + Softmax"]
+    OUT["Predicted Action\ne.g. Running, Jumping..."]
 
     V --> P --> FE --> ATT --> CLS --> OUT
 
@@ -214,13 +214,13 @@ sequenceDiagram
 flowchart LR
     IN["Feature Map\n(B × C × T × H × W)"]
 
-    subgraph Spatial_Branch["🗺️ Spatial Branch"]
+    subgraph Spatial_Branch["Spatial Branch"]
         SA1["Avg Pool → Temporal dim"]
         SA2["Lightweight 2D Conv"]
         SA3["Sigmoid → Spatial Mask"]
     end
 
-    subgraph Temporal_Branch["⏱️ Temporal Branch"]
+    subgraph Temporal_Branch["Temporal Branch"]
         TA1["Avg Pool → Spatial dims"]
         TA2["Lightweight 1D Conv"]
         TA3["Sigmoid → Temporal Mask"]
