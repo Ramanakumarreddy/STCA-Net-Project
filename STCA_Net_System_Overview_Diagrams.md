@@ -254,32 +254,32 @@ flowchart LR
 
 ```mermaid
 sequenceDiagram
-    participant DS as Dataset (real/ + fake/)
+    participant DS as Dataset (real + fake)
     participant VP as VideoSequenceDataset
     participant DL as DataLoader + WeightedSampler
     participant M as STCA-Net Model
     participant FL as FocalLoss
-    participant OPT as AdamW Optimizer
-    participant SCH as LR Scheduler
+    participant OPTIM as AdamW Optimizer
+    participant SCHED as LR Scheduler
     participant ES as Early Stopping
 
     loop Each Epoch
         DS ->> VP: Load frame sequences (seq_len=5)
         VP ->> DL: Return (T, C, H, W) tensor + label
         DL ->> M: Forward batch (B, T, C, H, W)
-        M ->> M: Spatial → Global → Freq → CrossAttn → Temporal
+        M ->> M: Spatial - Global - Freq - CrossAttn - Temporal
         M ->> FL: Logits + Ground Truth Labels
-        FL ->> OPT: Focal Loss (gamma=2, label_smoothing=0.1)
-        OPT ->> M: Backprop + clip_grad_norm(1.0) + Weight Update
+        FL ->> OPTIM: Focal Loss (gamma=2, label_smoothing=0.1)
+        OPTIM ->> M: Backprop + clip_grad_norm + Weight Update
         M ->> ES: Validation Loss
-        ES -->> OPT: Trigger LR step (cosine/plateau)
+        ES -->> OPTIM: Trigger LR step (cosine or plateau)
         ES -->> M: Save best weights if val_acc improves
-        ES -->> SCH: Stop if no improvement for `patience` epochs
+        ES -->> SCHED: Stop if no improvement for patience epochs
     end
 
     M ->> M: Load best saved weights
     M ->> M: Compute Confusion Matrix on val set
-    M ->> M: Print Accuracy / Precision / Recall / F1
+    M ->> M: Print Accuracy, Precision, Recall, F1
     M ->> M: Save training_history.json
 ```
 
