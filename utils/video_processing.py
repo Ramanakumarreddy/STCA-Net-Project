@@ -5,11 +5,21 @@ from PIL import Image
 
 logger = logging.getLogger(__name__)
 
-# Use Haar Cascades (fastest for CPU, good enough for most front-facing videos)
+# Haar Cascades are the fastest CPU-compatible face detector and are accurate
+# enough for frontal-face deepfake analysis. We load a single shared cascade.
 CASCADE_PATH = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
 
 def get_face_cascade():
-    """Load the Haar cascade classifier."""
+    """
+    Load the OpenCV Haar Cascade frontal-face detector.
+
+    Returns:
+        cv2.CascadeClassifier: The loaded face detector.
+
+    Raises:
+        FileNotFoundError: If the Haar cascade XML file cannot be found
+                           in the OpenCV installation data directory.
+    """
     cascade = cv2.CascadeClassifier(CASCADE_PATH)
     if cascade.empty():
         logger.error("Failed to load Haar cascade classifier.")
@@ -18,8 +28,19 @@ def get_face_cascade():
 
 def extract_face(image_array, cascade):
     """
-    Detects the largest face in an image array and returns the cropped face as a PIL Image.
-    If no face is found, returns the center crop of the image.
+    Detect the largest face in an image array and return it as a PIL Image.
+
+    Detection uses the provided Haar Cascade classifier. The largest face
+    (by bounding-box area) is selected, and a 20% margin is added on all
+    sides to include forehead, chin, and cheek context. If no face is found,
+    a square center crop of the image is returned as a fallback.
+
+    Args:
+        image_array (np.ndarray): RGB image array of shape (H, W, 3).
+        cascade (cv2.CascadeClassifier): A loaded Haar Cascade classifier.
+
+    Returns:
+        PIL.Image.Image: The cropped face region (or center crop if no face found).
     """
     # Convert to grayscale for Haar Cascade
     gray = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY)
@@ -56,13 +77,32 @@ def extract_face(image_array, cascade):
 
 def extract_frames_from_video(video_path, max_frames=15, output_dir=None):
     """
-    Extracts a sequence of face-cropped frames from a video file.
+    Extract a sequence of sharp, face-cropped frames from a video file.
+
+    This function implements a **smart frame selection** strategy to avoid
+    blurry or redundant frames:
+        1. The video is divided into ``max_frames`` equal-duration intervals.
+        2. Within each interval, up to 5 candidate frames are sampled.
+        3. The sharpest candidate (highest Variance of Laplacian score) is selected.
+        4. Haar Cascade face detection is applied to the chosen frame; the largest
+           detected face (+ 20% margin) is cropped, or a center crop is used as fallback.
+
+    This matches the inference preprocessing in ``utils/prediction.py`` so that
+    the model receives consistently face-centred inputs during both training and
+    real-time video analysis.
+
     Args:
-        video_path: Path to the video file
-        max_frames: Number of evenly spaced frames to extract
-        output_dir: If provided, saves the extracted frames to disk
+        video_path (str): Path to the input video file (supports .mp4, .avi, .mov, etc.).
+        max_frames (int): Maximum number of frames to extract. Frames are distributed
+                          evenly across the video duration. Default: 15.
+        output_dir (str | None): If provided, each extracted face image is saved as a
+                                 JPEG to this directory (created if absent). Default: None.
+
     Returns:
-        List of PIL Images containing the cropped faces
+        list[PIL.Image.Image]: A list of face-cropped PIL Images in chronological order.
+                               May be shorter than ``max_frames`` if the video is very
+                               short or if frames could not be decoded.
+                               Returns an empty list on any unrecoverable file error.
     """
     if not os.path.exists(video_path):
         logger.error(f"Video file not found: {video_path}")

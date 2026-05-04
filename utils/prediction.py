@@ -9,19 +9,30 @@ from scipy.fft import dctn
 
 logger = logging.getLogger(__name__)
 
-# Setup standard ImageNet normalization since MobileNet and ViT both expect it
+# ── Preprocessing transform ────────────────────────────────────────────────────
+# Both MobileNetV3 and ViT sub-networks expect ImageNet-normalized 384×384 input.
 preprocess_transform = transforms.Compose([
     transforms.Resize((384, 384)),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
-# Load Haar cascade once at module level
+# ── Haar Cascade (lazy-loaded singleton) ─────────────────────────────────────────
+# Loading the XML file is expensive; we do it once and cache it.
 CASCADE_PATH = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
 _face_cascade = None
 
 def _get_face_cascade():
-    """Lazily load the Haar cascade classifier."""
+    """
+    Lazily load and cache the OpenCV Haar Cascade face detector.
+
+    Returns:
+        cv2.CascadeClassifier: The loaded classifier, ready to call detectMultiScale().
+
+    Raises:
+        FileNotFoundError: If the Haar cascade XML file cannot be found in the
+                           OpenCV data directory.
+    """
     global _face_cascade
     if _face_cascade is None:
         _face_cascade = cv2.CascadeClassifier(CASCADE_PATH)
@@ -33,9 +44,20 @@ def _get_face_cascade():
 
 def extract_face_from_image(pil_image):
     """
-    Detect and crop the largest face from a PIL Image.
-    Returns (cropped_face_pil, face_found_bool).
-    If no face is found, returns a center crop.
+    Detect and crop the largest face from a PIL Image using Haar Cascades.
+
+    A 20% margin is added around the detected bounding box to include
+    chin, forehead, and cheek context. If no face is detected, a square
+    center crop of the image is returned as a fallback so inference can
+    still proceed.
+
+    Args:
+        pil_image (PIL.Image.Image): The input image in RGB mode.
+
+    Returns:
+        tuple:
+            - cropped (PIL.Image.Image): The face region (or center crop).
+            - face_found (bool): True if a face was detected, False for center crop.
     """
     img_array = np.array(pil_image)
     gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
@@ -73,11 +95,24 @@ def extract_face_from_image(pil_image):
 
 def compute_frequency_score(pil_image):
     """
-    Compute a frequency-domain anomaly score using DCT analysis.
-    AI-generated images (GANs, diffusion models) have distinct frequency
-    patterns: typically lower high-frequency energy and smoother spectral decay.
-    
-    Returns a score from 0.0 (looks natural/real) to 1.0 (looks AI-generated).
+    Compute a frequency-domain anomaly score using 2D Discrete Cosine Transform (DCT).
+
+    AI-generated images (GANs, diffusion models) share a distinctive spectral
+    signature compared to real photographs:
+        - **Lower high-frequency energy** — smoother, overly-clean textures.
+        - **Concentrated low-frequency energy** — energy is over-centralised.
+        - **Steeper spectral decay slope** — energy drops off faster from low to high frequencies.
+
+    The scoring heuristic is calibrated empirically and clamps to [0.0, 1.0].
+
+    Args:
+        pil_image (PIL.Image.Image): Input image in any PIL mode (auto-converted to grayscale).
+
+    Returns:
+        float: Anomaly score in [0.0, 1.0].
+               0.0 = no AI-generated frequency signature detected (looks natural/real).
+               1.0 = strong AI-generated frequency signature.
+               Returns 0.0 silently on any processing error.
     """
     try:
         # Convert to grayscale numpy array
@@ -158,10 +193,26 @@ def compute_frequency_score(pil_image):
 
 def detect_non_photographic(pil_image):
     """
-    Detect if an image is non-photographic (anime, cartoon, illustration, etc.)
-    by analyzing color distribution, edge density and texture characteristics.
-    
-    Returns (is_non_photo: bool, confidence: float)
+    Detect whether an image is non-photographic (anime, cartoon, illustration, etc.).
+
+    Uses four image statistics to identify non-photographic content:
+        1. **Saturation** — cartoons/anime have high mean saturation and low variance.
+        2. **Unique colour count (quantized)** — fewer distinct colours suggest flat artwork.
+        3. **Texture variance** (Laplacian) — artwork has lower overall texture complexity.
+        4. **Edge density** (Canny) — sharp outlines with flat fill areas are cartoon-like.
+
+    The combined score threshold is 0.5. This check is important to avoid
+    false-positive FAKE predictions on clearly non-photographic inputs where
+    the deepfake detection model is out-of-distribution.
+
+    Args:
+        pil_image (PIL.Image.Image): Input image in any PIL mode.
+
+    Returns:
+        tuple:
+            - is_non_photo (bool): True if the image appears non-photographic.
+            - confidence (float): Rounded composite score in [0.0, 1.0].
+                                  Returns (False, 0.0) on any processing error.
     """
     try:
         img_array = np.array(pil_image.convert('RGB').resize((256, 256)))
@@ -222,8 +273,25 @@ def detect_non_photographic(pil_image):
 
 def check_ai_signatures(image_path, pil_image):
     """
-    Check filename and image metadata for obvious AI generation signatures.
-    Many modern generators leave EXIF data, software tags, or recognizable filenames.
+    Perform a fast heuristic scan for explicit AI-generation signatures in a file's
+    name and EXIF/metadata, before invoking any neural network inference.
+
+    Checks:
+        1. **Filename keywords**: Scans the basename for common AI tool names
+           (e.g., ``gemini_generated``, ``dalle``, ``midjourney``, ``stable_diffusion``).
+        2. **Image metadata/EXIF**: Inspects PIL's ``image.info`` dict as a string
+           for known generator tags from Google Gemini, DALL-E, Midjourney, and
+           Stable Diffusion.
+
+    Args:
+        image_path (str): Absolute or relative path to the image file on disk.
+        pil_image (PIL.Image.Image): The opened PIL image (used to inspect its .info dict).
+
+    Returns:
+        tuple:
+            - sig_score (float): 1.0 if an AI signature was found, 0.0 otherwise.
+            - sig_reason (str): Human-readable description of the matched signature,
+                                or an empty string if no signature was found.
     """
     try:
         # 1. Check filename
@@ -248,8 +316,43 @@ def check_ai_signatures(image_path, pil_image):
 
 def predict_image(model, image_path, device='cpu'):
     """
-    Predicts whether a single image is REAL or FAKE using the given STCA-Net model.
-    Combines neural network prediction with frequency-domain analysis and signature checks.
+    Run the full STCA-Net deepfake detection pipeline on a single image.
+
+    Pipeline stages (in order):
+        1. AI signature check — filename + EXIF metadata scan.
+        2. Non-photographic detection — saturation / edge / texture analysis.
+        3. Face extraction — Haar Cascade crop (falls back to center crop).
+        4. DCT frequency analysis — band-energy AI-likeness score.
+        5. STCA-Net forward pass — on the face-cropped, 384×384 image.
+        6. Score fusion — NN (70%) + frequency (30%), with signature override.
+
+    If an explicit AI generation signature is found (step 1), the score is
+    overridden to 95% FAKE without running the neural network.
+
+    Args:
+        model (STCANet): A loaded (and optionally `.eval()`-ed) STCA-Net model.
+        image_path (str): Path to the image file to analyse.
+        device (str | torch.device): PyTorch device string, e.g. ``'cpu'`` or ``'cuda'``.
+
+    Returns:
+        dict: A result dictionary with the following keys:
+            - ``prediction`` (str): ``'REAL'`` or ``'FAKE'``.
+            - ``confidence`` (float): Percentage confidence of the predicted class.
+            - ``fake_probability`` (float): Combined FAKE probability (%).
+            - ``real_probability`` (float): Combined REAL probability (%).
+            - ``nn_fake_probability`` (float): Neural network FAKE probability only (%).
+            - ``nn_real_probability`` (float): Neural network REAL probability only (%).
+            - ``attention_map`` (np.ndarray): Cross-attention weights (B, T, 1, 144).
+            - ``face_detected`` (bool): Whether a face was found by Haar Cascade.
+            - ``frequency_score`` (float): DCT AI-likeness score 0–100 (higher = more AI-like).
+            - ``signature_found`` (bool): True if an AI metadata/filename signature was detected.
+            - ``signature_reason`` (str): Description of the signature match (if any).
+            - ``is_non_photographic`` (bool): True if classified as cartoon/anime/illustration.
+            - ``warning`` (str, optional): Present only when ``is_non_photographic`` is True.
+
+    Raises:
+        FileNotFoundError: If ``image_path`` does not exist.
+        Exception: If any processing step fails (wraps the original error message).
     """
     if not os.path.exists(image_path):
         raise FileNotFoundError(f"Image not found at {image_path}")
@@ -349,9 +452,39 @@ def predict_image(model, image_path, device='cpu'):
 
 def predict_video_frames(model, frames, device='cpu'):
     """
-    Takes a list of PIL Images (extracted frames), passes them as a temporal sequence 
-    to the STCA-Net model, and combines with frequency analysis.
-    Also computes per-frame scores for timeline visualization.
+    Run the full STCA-Net deepfake detection pipeline on a pre-extracted list of frames.
+
+    Processes the frame list in two ways:
+        1. **Sequence inference**: All frames are stacked into a single
+           ``(1, T, C, H, W)`` tensor and passed through STCA-Net's temporal
+           encoder for a coherent multi-frame decision.
+        2. **Per-frame inference**: Each frame is also evaluated individually
+           to produce ``per_frame_scores`` for timeline visualisation in the UI.
+
+    DCT frequency analysis is run on every frame independently; the per-frame
+    scores are averaged and blended with the NN score (70% NN / 30% freq).
+
+    Args:
+        model (STCANet): A loaded STCA-Net model. Should be in eval mode.
+        frames (list[PIL.Image.Image]): List of face-cropped PIL Images, one per
+                                        sampled video frame.
+        device (str | torch.device): PyTorch device, e.g. ``'cpu'`` or ``'cuda'``.
+
+    Returns:
+        dict: A result dictionary with the following keys:
+            - ``prediction`` (str): ``'REAL'`` or ``'FAKE'``.
+            - ``confidence`` (float): Percentage confidence of the predicted class.
+            - ``frames_analyzed`` (int): Number of frames processed.
+            - ``fake_probability`` (float): Combined FAKE probability (%).
+            - ``real_probability`` (float): Combined REAL probability (%).
+            - ``nn_fake_probability`` (float): Sequence-level NN FAKE probability (%).
+            - ``nn_real_probability`` (float): Sequence-level NN REAL probability (%).
+            - ``frequency_score`` (float): Average DCT AI-likeness score 0–100.
+            - ``per_frame_scores`` (list[float]): Per-frame FAKE probabilities (%) from individual NN passes.
+            - ``per_frame_freq_scores`` (list[float]): Per-frame DCT AI-likeness scores (%).
+
+    Raises:
+        ValueError: If ``frames`` is empty.
     """
     if not frames:
         raise ValueError("No frames provided for prediction.")
