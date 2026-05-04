@@ -63,7 +63,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
 
-    weights_path = os.path.join("model", "stca_net_weights.pt")
+    weights_path = os.path.join("models", "stca_net_weights.pt")
     if not os.path.exists(weights_path):
         print("ERROR: No weights found at", weights_path)
         return
@@ -108,7 +108,7 @@ def main():
         print(f"  F1 Score : {r['f1']:.4f}")
 
     # Also show training history summary
-    hist_path = os.path.join("model", "training_history.json")
+    hist_path = os.path.join("models", "training_history.json")
     if os.path.exists(hist_path):
         with open(hist_path) as f:
             hist = json.load(f)

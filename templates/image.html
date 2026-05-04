@@ -32,9 +32,9 @@
 
             {% if data %}
             <!-- Results View -->
-            <div class="card result-box">
+            <div class="result-card-wide result-box">
                 <h2>Forensic Analysis Complete</h2>
-                <div class="details">Model Used: {{ data.model_used }}</div>
+                <div class="details" style="border-top: none; padding-top: 0;">Model Used: {{ data.model_used }}</div>
 
                 {% if data.warning %}
                 <div style="background: rgba(255, 193, 7, 0.15); border: 1px solid rgba(255, 193, 7, 0.4); border-radius: 8px; padding: 1rem; margin: 1rem 0; text-align: left;">
@@ -43,38 +43,86 @@
                     <span style="color: var(--text-secondary);">{{ data.warning }}</span>
                 </div>
                 {% endif %}
-                
-                <div class="result-badge {{ 'real' if data.prediction == 'REAL' else 'fake' }} mt-4">
-                    {{ data.prediction }}
-                </div>
-                
-                <p>Confidence: <strong>{{ data.confidence }}%</strong></p>
-                <div class="confidence-bar-bg">
-                    <div class="confidence-fill" style="width: {{ data.confidence }}%;"></div>
+
+                <!-- Verdict Section -->
+                <div class="verdict-section">
+                    <div class="verdict-text">
+                        <div class="result-badge {{ 'real' if data.prediction == 'REAL' else 'fake' }}">
+                            {{ data.prediction }}
+                        </div>
+                        <p>Confidence: <strong>{{ data.confidence }}%</strong></p>
+                        <div class="confidence-bar-bg" style="width: 250px; margin: 0.5rem auto;">
+                            <div class="confidence-fill" style="width: {{ data.confidence }}%;"></div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="details" style="margin-top: 1.5rem; text-align: left;">
-                    <p><i class="fas fa-clock" style="width: 20px; color: var(--primary-color);"></i> Processed in {{ data.processing_time }} seconds (CPU)</p>
-                    <p><i class="fas fa-wave-square" style="width: 20px; color: var(--primary-color);"></i> Frequency Analysis Score: <strong>{{ data.frequency_score }}%</strong>
-                        <span class="text-muted" style="font-size: 0.85em;"> (higher = more likely AI-generated)</span>
-                    </p>
-                    <p><i class="fas fa-user" style="width: 20px; color: var(--primary-color);"></i> Face Detected: 
-                        {% if data.face_detected %}
-                            <span style="color: var(--success-color);"><strong>Yes</strong></span>
-                        {% else %}
-                            <span style="color: var(--danger-color);"><strong>No</strong></span>
-                            <span class="text-muted" style="font-size: 0.85em;"> (center crop used as fallback)</span>
-                        {% endif %}
-                    </p>
+                <!-- Info Pills -->
+                <div class="info-pills">
+                    <span class="info-pill">
+                        <i class="fas fa-clock"></i> <span class="pill-value">{{ data.processing_time }}s</span> Processing
+                    </span>
+                    <span class="info-pill">
+                        <i class="fas fa-wave-square"></i> Freq Score: <span class="pill-value">{{ data.frequency_score }}%</span>
+                    </span>
+                    <span class="info-pill">
+                        <i class="fas fa-user"></i> Face: 
+                        <span class="pill-value" style="color: {{ 'var(--success-color)' if data.face_detected else 'var(--danger-color)' }};">
+                            {{ 'Detected' if data.face_detected else 'Not Found' }}
+                        </span>
+                    </span>
+                    {% if data.signature_found %}
+                    <span class="info-pill" style="border-color: var(--danger-color); background: rgba(239,68,68,0.08);">
+                        <i class="fas fa-fingerprint" style="color: var(--danger-color);"></i>
+                        <span class="pill-value" style="color: var(--danger-color);">AI Signature Found</span>
+                    </span>
+                    {% endif %}
                 </div>
 
-                <!-- Analysis Graph -->
-                <div class="chart-container" style="position: relative; height:30vh; width:100%; margin-top: 2rem;">
-                    <canvas id="analysisChart"></canvas>
-                </div>
+                <!-- Chart Dashboard -->
+                <div class="chart-dashboard">
+                    <!-- 1. Verdict Doughnut -->
+                    <div class="chart-card">
+                        <h3><i class="fas fa-chart-pie"></i> Verdict Breakdown</h3>
+                        <div class="chart-container-sm">
+                            <canvas id="verdictDoughnut"></canvas>
+                        </div>
+                    </div>
 
+                    <!-- 2. Confidence Gauge -->
+                    <div class="chart-card">
+                        <h3><i class="fas fa-tachometer-alt"></i> Confidence Gauge</h3>
+                        <div class="chart-container-sm">
+                            <canvas id="gaugeChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 3. Analysis Breakdown Bars -->
+                    <div class="chart-card full-width">
+                        <h3><i class="fas fa-chart-bar"></i> Analysis Breakdown</h3>
+                        <div class="chart-container-lg">
+                            <canvas id="breakdownBars"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 4. Radar Chart -->
+                    <div class="chart-card">
+                        <h3><i class="fas fa-spider"></i> Forensic Profile</h3>
+                        <div class="chart-container-md">
+                            <canvas id="radarChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 5. Signal Contribution Pie -->
+                    <div class="chart-card">
+                        <h3><i class="fas fa-puzzle-piece"></i> Signal Contribution</h3>
+                        <div class="chart-container-md">
+                            <canvas id="contributionPie"></canvas>
+                        </div>
+                    </div>
+                </div>
                 
-                <a href="/image-detect" class="btn btn-secondary mt-4">Scan Another Image</a>
+                <a href="/image-detect" class="btn btn-secondary mt-4" style="margin-top: 2rem; display: inline-block;">Scan Another Image</a>
             </div>
             {% else %}
             <!-- Upload View -->
@@ -144,49 +192,238 @@
             });
         }
 
-        // Initialize Chart.js if data exists
+        // ===== Initialize Charts =====
         {% if data %}
         document.addEventListener("DOMContentLoaded", function() {
-            const ctx = document.getElementById('analysisChart').getContext('2d');
-            const isReal = '{{ data.prediction }}' === 'REAL';
-            const predictionValue = parseFloat('{{ data.confidence }}');
-            const realProb = isReal ? predictionValue : (100 - predictionValue).toFixed(2);
-            const fakeProb = isReal ? (100 - predictionValue).toFixed(2) : predictionValue;
-            
+            const realProb = parseFloat('{{ data.real_probability }}');
+            const fakeProb = parseFloat('{{ data.fake_probability }}');
+            const nnFake = parseFloat('{{ data.nn_fake_probability }}');
+            const nnReal = parseFloat('{{ data.nn_real_probability }}');
             const freqScore = parseFloat('{{ data.frequency_score }}');
+            const confidence = parseFloat('{{ data.confidence }}');
+            const isReal = '{{ data.prediction }}' === 'REAL';
+            const faceDetected = '{{ data.face_detected }}' === 'True';
+            const sigFound = '{{ data.signature_found }}' === 'True';
 
-            new Chart(ctx, {
+            // Color palette
+            const GREEN = '#10b981';
+            const GREEN_BG = 'rgba(16, 185, 129, 0.15)';
+            const RED = '#ef4444';
+            const RED_BG = 'rgba(239, 68, 68, 0.15)';
+            const YELLOW = '#f59e0b';
+            const YELLOW_BG = 'rgba(245, 158, 11, 0.15)';
+            const BLUE = '#4f46e5';
+            const BLUE_BG = 'rgba(79, 70, 229, 0.15)';
+            const GRAY = '#94a3b8';
+
+            // ---- 1. Verdict Doughnut ----
+            new Chart(document.getElementById('verdictDoughnut'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Real', 'Fake'],
+                    datasets: [{
+                        data: [realProb, fakeProb],
+                        backgroundColor: [GREEN, RED],
+                        borderColor: ['#fff', '#fff'],
+                        borderWidth: 3,
+                        hoverOffset: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { padding: 15, font: { size: 12, family: 'Inter' } } },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => `${ctx.label}: ${ctx.parsed.toFixed(1)}%`
+                            }
+                        }
+                    }
+                },
+                plugins: [{
+                    id: 'centerText',
+                    afterDraw(chart) {
+                        const { ctx, chartArea: { width, height, top } } = chart;
+                        ctx.save();
+                        ctx.font = 'bold 22px Inter';
+                        ctx.fillStyle = isReal ? GREEN : RED;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(isReal ? 'REAL' : 'FAKE', width / 2 + chart.chartArea.left, top + height / 2 - 8);
+                        ctx.font = '13px Inter';
+                        ctx.fillStyle = '#64748b';
+                        ctx.fillText(confidence.toFixed(1) + '%', width / 2 + chart.chartArea.left, top + height / 2 + 16);
+                        ctx.restore();
+                    }
+                }]
+            });
+
+            // ---- 2. Confidence Gauge ----
+            const gaugeValue = isReal ? (100 - confidence) : confidence; // 0=safe, 100=fake
+            new Chart(document.getElementById('gaugeChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Safe', 'Uncertain', 'Danger'],
+                    datasets: [{
+                        data: [40, 20, 40],
+                        backgroundColor: ['rgba(16,185,129,0.25)', 'rgba(245,158,11,0.25)', 'rgba(239,68,68,0.25)'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    rotation: -90,
+                    circumference: 180,
+                    cutout: '75%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    }
+                },
+                plugins: [{
+                    id: 'gaugeNeedle',
+                    afterDraw(chart) {
+                        const { ctx, chartArea } = chart;
+                        const cx = (chartArea.left + chartArea.right) / 2;
+                        const cy = chartArea.bottom - 10;
+                        const radius = (chartArea.right - chartArea.left) / 2 - 15;
+                        
+                        // Draw needle
+                        const angle = Math.PI + (gaugeValue / 100) * Math.PI;
+                        const needleX = cx + radius * 0.75 * Math.cos(angle);
+                        const needleY = cy + radius * 0.75 * Math.sin(angle);
+                        
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.moveTo(cx, cy);
+                        ctx.lineTo(needleX, needleY);
+                        ctx.strokeStyle = '#1e293b';
+                        ctx.lineWidth = 3;
+                        ctx.lineCap = 'round';
+                        ctx.stroke();
+                        
+                        // Draw center circle
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+                        ctx.fillStyle = '#1e293b';
+                        ctx.fill();
+                        
+                        // Draw value text
+                        ctx.font = 'bold 24px Inter';
+                        ctx.fillStyle = gaugeValue > 60 ? RED : gaugeValue > 40 ? YELLOW : GREEN;
+                        ctx.textAlign = 'center';
+                        ctx.fillText(confidence.toFixed(1) + '%', cx, cy + 30);
+                        
+                        ctx.font = '11px Inter';
+                        ctx.fillStyle = '#64748b';
+                        ctx.fillText(gaugeValue > 60 ? 'HIGH RISK' : gaugeValue > 40 ? 'UNCERTAIN' : 'LOW RISK', cx, cy + 48);
+                        ctx.restore();
+                    }
+                }]
+            });
+
+            // ---- 3. Analysis Breakdown Bars ----
+            new Chart(document.getElementById('breakdownBars'), {
                 type: 'bar',
                 data: {
-                    labels: ['Real Probability', 'Fake Probability', 'Frequency Score (AI Metric)'],
+                    labels: ['Neural Network (Fake)', 'Neural Network (Real)', 'Frequency Score', 'Combined (Fake)', 'Combined (Real)'],
                     datasets: [{
-                        label: 'Analysis Metrics (%)',
-                        data: [realProb, fakeProb, freqScore],
-                        backgroundColor: [
-                            'rgba(40, 167, 69, 0.6)',  // green for real
-                            'rgba(220, 53, 69, 0.6)',   // red for fake
-                            'rgba(255, 193, 7, 0.6)'    // yellow for freq
+                        label: 'Score (%)',
+                        data: [nnFake, nnReal, freqScore, fakeProb, realProb],
+                        backgroundColor: [RED_BG, GREEN_BG, YELLOW_BG, RED_BG, GREEN_BG],
+                        borderColor: [RED, GREEN, YELLOW, RED, GREEN],
+                        borderWidth: 2,
+                        borderRadius: 6,
+                        barPercentage: 0.7
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { beginAtZero: true, max: 100, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { callback: v => v + '%' } },
+                        y: { grid: { display: false }, ticks: { font: { size: 11, family: 'Inter' } } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: ctx => ctx.parsed.x.toFixed(1) + '%' } }
+                    }
+                }
+            });
+
+            // ---- 4. Radar Chart ----
+            new Chart(document.getElementById('radarChart'), {
+                type: 'radar',
+                data: {
+                    labels: ['Spatial Artifacts', 'Frequency Anomaly', 'Face Detection', 'AI Signature', 'Overall Confidence'],
+                    datasets: [{
+                        label: 'Forensic Profile',
+                        data: [
+                            nnFake,
+                            freqScore,
+                            faceDetected ? 100 : 50,
+                            sigFound ? 100 : 0,
+                            confidence
                         ],
-                        borderColor: [
-                            'rgba(40, 167, 69, 1)',
-                            'rgba(220, 53, 69, 1)',
-                            'rgba(255, 193, 7, 1)'
-                        ],
-                        borderWidth: 1
+                        backgroundColor: 'rgba(79, 70, 229, 0.15)',
+                        borderColor: BLUE,
+                        borderWidth: 2,
+                        pointBackgroundColor: BLUE,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        y: {
+                        r: {
                             beginAtZero: true,
-                            max: 100
+                            max: 100,
+                            ticks: { stepSize: 25, font: { size: 9 }, backdropColor: 'transparent' },
+                            pointLabels: { font: { size: 10, family: 'Inter' } },
+                            grid: { color: 'rgba(0,0,0,0.06)' }
                         }
                     },
                     plugins: {
-                        legend: {
-                            display: false
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: ctx => ctx.parsed.r.toFixed(1) + '%' } }
+                    }
+                }
+            });
+
+            // ---- 5. Signal Contribution Pie ----
+            const nnContrib = 70;
+            const freqContrib = 30;
+            const sigContrib = sigFound ? 'Override' : 'None';
+
+            new Chart(document.getElementById('contributionPie'), {
+                type: 'pie',
+                data: {
+                    labels: sigFound 
+                        ? ['Neural Network', 'Frequency Analysis', 'AI Signature (Override)']
+                        : ['Neural Network (70%)', 'Frequency Analysis (30%)'],
+                    datasets: [{
+                        data: sigFound ? [35, 15, 50] : [70, 30],
+                        backgroundColor: sigFound ? [BLUE, YELLOW, RED] : [BLUE, YELLOW],
+                        borderColor: '#fff',
+                        borderWidth: 3,
+                        hoverOffset: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { padding: 12, font: { size: 11, family: 'Inter' } } },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => `${ctx.label}: ${ctx.parsed}% weight`
+                            }
                         }
                     }
                 }

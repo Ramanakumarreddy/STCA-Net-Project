@@ -35,7 +35,7 @@ PYTHON_EXE = os.path.join("venv", "Scripts", "python.exe") \
 
 CHUNK_DIR   = os.path.join("dataset", "chunk_data")
 REPLAY_DIR  = os.path.join("dataset", "replay_buffer")
-WEIGHTS     = os.path.join("model", "stca_net_weights.pt")
+WEIGHTS     = os.path.join("models", "stca_net_weights.pt")
 # ─────────────────────────────────────────────────────────────
 
 

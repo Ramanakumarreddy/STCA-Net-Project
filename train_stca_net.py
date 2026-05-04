@@ -429,7 +429,7 @@ if __name__ == '__main__':
         )
         scheduler_name = 'ReduceLROnPlateau (factor=0.5, patience=3)'
     
-    save_dir = "model"
+    save_dir = "models"
     os.makedirs(save_dir, exist_ok=True)
     save_path = os.path.join(save_dir, "stca_net_weights.pt")
     

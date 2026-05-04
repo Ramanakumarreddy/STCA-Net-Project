@@ -316,6 +316,8 @@ def predict_image(model, image_path, device='cpu'):
             'confidence': round(confidence, 2),
             'fake_probability': round(fake_prob, 2),
             'real_probability': round(real_prob, 2),
+            'nn_fake_probability': round(nn_fake_prob * 100, 2),
+            'nn_real_probability': round(nn_real_prob * 100, 2),
             'attention_map': attn_weights.cpu().numpy(),
             'face_detected': face_found,
             'frequency_score': round(freq_score * 100, 2),
@@ -349,6 +351,7 @@ def predict_video_frames(model, frames, device='cpu'):
     """
     Takes a list of PIL Images (extracted frames), passes them as a temporal sequence 
     to the STCA-Net model, and combines with frequency analysis.
+    Also computes per-frame scores for timeline visualization.
     """
     if not frames:
         raise ValueError("No frames provided for prediction.")
@@ -376,6 +379,14 @@ def predict_video_frames(model, frames, device='cpu'):
         probabilities = torch.nn.functional.softmax(output[0], dim=0)
         avg_nn_fake = probabilities[0].item()
         avg_nn_real = probabilities[1].item()
+        
+        # Per-frame analysis: run each frame individually for timeline chart
+        per_frame_fake_probs = []
+        for tensor_frame in tensor_frames:
+            single_input = tensor_frame.unsqueeze(0).to(device)  # (1, C, H, W)
+            single_output, _ = model(single_input)
+            single_probs = torch.nn.functional.softmax(single_output[0], dim=0)
+            per_frame_fake_probs.append(round(single_probs[0].item() * 100, 2))
     
     # Combine with frequency analysis (same weighting as image)
     nn_weight = 0.70
@@ -400,5 +411,9 @@ def predict_video_frames(model, frames, device='cpu'):
         'frames_analyzed': len(frames),
         'fake_probability': round(avg_fake_prob, 2),
         'real_probability': round(avg_real_prob, 2),
+        'nn_fake_probability': round(avg_nn_fake * 100, 2),
+        'nn_real_probability': round(avg_nn_real * 100, 2),
         'frequency_score': round(avg_freq * 100, 2),
+        'per_frame_scores': per_frame_fake_probs,
+        'per_frame_freq_scores': [round(s * 100, 2) for s in freq_scores],
     }

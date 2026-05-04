@@ -18,7 +18,7 @@ EVAL_REAL_SAMPLE  = 50     # Real videos to randomly sample
 EVAL_FAKE_SAMPLE  = 50     # Fake videos to randomly sample
 FRAMES_PER_VIDEO  = 5      # Frames extracted per video
 EVAL_DIR          = "dataset/eval_comprehensive"
-WEIGHTS_PATH      = "model/stca_net_weights.pt"
+WEIGHTS_PATH      = "models/stca_net_weights.pt"
 BATCH_SIZE        = 16
 SEED              = 42
 # ─────────────────────────────────────────────────────────────
