@@ -271,7 +271,7 @@ def detect_non_photographic(pil_image):
         return False, 0.0
 
 
-def check_ai_signatures(image_path, pil_image):
+def check_ai_signatures(image_path, pil_image=None):
     """
     Perform a fast heuristic scan for explicit AI-generation signatures in a file's
     name and EXIF/metadata, before invoking any neural network inference.
@@ -285,7 +285,7 @@ def check_ai_signatures(image_path, pil_image):
 
     Args:
         image_path (str): Absolute or relative path to the image file on disk.
-        pil_image (PIL.Image.Image): The opened PIL image (used to inspect its .info dict).
+        pil_image (PIL.Image.Image, optional): The opened PIL image (used to inspect its .info dict).
 
     Returns:
         tuple:
@@ -295,17 +295,19 @@ def check_ai_signatures(image_path, pil_image):
     """
     try:
         # 1. Check filename
-        basename = os.path.basename(image_path).lower()
-        ai_keywords = ['gemini_generated', 'dall_e', 'dalle', 'midjourney', 'stable_diffusion', 'ai_generated', 'journey']
-        if any(k in basename for k in ai_keywords):
-            return 1.0, "AI signature found in filename."
+        if image_path:
+            basename = os.path.basename(image_path).lower()
+            ai_keywords = ['gemini_generated', 'dall_e', 'dalle', 'midjourney', 'stable_diffusion', 'ai_generated', 'journey']
+            if any(k in basename for k in ai_keywords):
+                return 1.0, "AI signature found in filename."
             
         # 2. Check metadata / EXIF
-        info_str = str(pil_image.info).lower()
-        if 'google' in info_str and 'gemini' in info_str:
-            return 1.0, "AI signature found in metadata (Gemini)."
-        elif 'dall-e' in info_str or 'midjourney' in info_str or 'stable diffusion' in info_str:
-            return 1.0, "AI generation software found in metadata."
+        if pil_image:
+            info_str = str(pil_image.info).lower()
+            if 'google' in info_str and 'gemini' in info_str:
+                return 1.0, "AI signature found in metadata (Gemini)."
+            elif 'dall-e' in info_str or 'midjourney' in info_str or 'stable diffusion' in info_str:
+                return 1.0, "AI generation software found in metadata."
             
     except Exception as e:
         logger.warning(f"Signature check failed: {e}")
@@ -396,8 +398,8 @@ def predict_image(model, image_path, device='cpu'):
             combined_real_prob = 0.05
         else:
             # Neural network weight: 0.7, Frequency analysis weight: 0.3
-            nn_weight = 0.70
-            freq_weight = 0.30
+            nn_weight = 0.80
+            freq_weight = 0.20
             
             # freq_score is 0=real, 1=AI-generated → treat as fake probability
             combined_fake_prob = (nn_fake_prob * nn_weight) + (freq_score * freq_weight)
@@ -450,7 +452,7 @@ def predict_image(model, image_path, device='cpu'):
         raise Exception(f"Failed to process image: {str(e)}")
 
 
-def predict_video_frames(model, frames, device='cpu'):
+def predict_video_frames(model, frames, device='cpu', video_path=None):
     """
     Run the full STCA-Net deepfake detection pipeline on a pre-extracted list of frames.
 
@@ -469,6 +471,7 @@ def predict_video_frames(model, frames, device='cpu'):
         frames (list[PIL.Image.Image]): List of face-cropped PIL Images, one per
                                         sampled video frame.
         device (str | torch.device): PyTorch device, e.g. ``'cpu'`` or ``'cuda'``.
+        video_path (str, optional): Path to the video file for signature check.
 
     Returns:
         dict: A result dictionary with the following keys:
@@ -488,6 +491,11 @@ def predict_video_frames(model, frames, device='cpu'):
     """
     if not frames:
         raise ValueError("No frames provided for prediction.")
+        
+    sig_score = 0.0
+    sig_reason = ""
+    if video_path:
+        sig_score, sig_reason = check_ai_signatures(video_path)
         
     freq_scores = []
     tensor_frames = []
@@ -522,15 +530,19 @@ def predict_video_frames(model, frames, device='cpu'):
             per_frame_fake_probs.append(round(single_probs[0].item() * 100, 2))
     
     # Combine with frequency analysis (same weighting as image)
-    nn_weight = 0.70
-    freq_weight = 0.30
-    
-    combined_fake = (avg_nn_fake * nn_weight) + (avg_freq * freq_weight)
-    combined_real = (avg_nn_real * nn_weight) + ((1 - avg_freq) * freq_weight)
-    
-    total = combined_fake + combined_real
-    combined_fake /= total
-    combined_real /= total
+    if sig_score == 1.0:
+        combined_fake = 0.95
+        combined_real = 0.05
+    else:
+        nn_weight = 0.70
+        freq_weight = 0.30
+        
+        combined_fake = (avg_nn_fake * nn_weight) + (avg_freq * freq_weight)
+        combined_real = (avg_nn_real * nn_weight) + ((1 - avg_freq) * freq_weight)
+        
+        total = combined_fake + combined_real
+        combined_fake /= total
+        combined_real /= total
     
     avg_fake_prob = combined_fake * 100
     avg_real_prob = combined_real * 100
@@ -549,4 +561,6 @@ def predict_video_frames(model, frames, device='cpu'):
         'frequency_score': round(avg_freq * 100, 2),
         'per_frame_scores': per_frame_fake_probs,
         'per_frame_freq_scores': [round(s * 100, 2) for s in freq_scores],
+        'signature_found': sig_score == 1.0,
+        'signature_reason': sig_reason
     }

@@ -83,7 +83,7 @@ def detect_video():
             raise Exception("No readable frames or faces found in video.")
             
         # 2. Predict
-        result = predict_video_frames(stca_model, frames, device=device)
+        result = predict_video_frames(stca_model, frames, device=device, video_path=filepath)
         processing_time = round(time.time() - start_time, 2)
         
         result['processing_time'] = processing_time
