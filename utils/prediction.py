@@ -9,6 +9,16 @@ from scipy.fft import dctn
 
 logger = logging.getLogger(__name__)
 
+# ── Configurable fusion weights ────────────────────────────────────────────────
+# These control how neural-network and frequency-analysis scores are blended.
+# Adjust them here to tune the scoring balance across the entire project.
+# Image pipeline weights
+IMAGE_NN_WEIGHT = 0.80
+IMAGE_FREQ_WEIGHT = 0.20
+# Video pipeline weights
+VIDEO_NN_WEIGHT = 0.70
+VIDEO_FREQ_WEIGHT = 0.30
+
 # ── Preprocessing transform ────────────────────────────────────────────────────
 # Both MobileNetV3 and ViT sub-networks expect ImageNet-normalized 384×384 input.
 preprocess_transform = transforms.Compose([
@@ -326,7 +336,7 @@ def predict_image(model, image_path, device='cpu'):
         3. Face extraction — Haar Cascade crop (falls back to center crop).
         4. DCT frequency analysis — band-energy AI-likeness score.
         5. STCA-Net forward pass — on the face-cropped, 384×384 image.
-        6. Score fusion — NN (70%) + frequency (30%), with signature override.
+        6. Score fusion — NN + frequency (weights from module constants), with signature override.
 
     If an explicit AI generation signature is found (step 1), the score is
     overridden to 95% FAKE without running the neural network.
@@ -397,9 +407,8 @@ def predict_image(model, image_path, device='cpu'):
             combined_fake_prob = 0.95
             combined_real_prob = 0.05
         else:
-            # Neural network weight: 0.7, Frequency analysis weight: 0.3
-            nn_weight = 0.80
-            freq_weight = 0.20
+            nn_weight = IMAGE_NN_WEIGHT
+            freq_weight = IMAGE_FREQ_WEIGHT
             
             # freq_score is 0=real, 1=AI-generated → treat as fake probability
             combined_fake_prob = (nn_fake_prob * nn_weight) + (freq_score * freq_weight)
@@ -464,7 +473,7 @@ def predict_video_frames(model, frames, device='cpu', video_path=None):
            to produce ``per_frame_scores`` for timeline visualisation in the UI.
 
     DCT frequency analysis is run on every frame independently; the per-frame
-    scores are averaged and blended with the NN score (70% NN / 30% freq).
+    scores are averaged and blended with the NN score (weights from module constants).
 
     Args:
         model (STCANet): A loaded STCA-Net model. Should be in eval mode.
@@ -534,8 +543,8 @@ def predict_video_frames(model, frames, device='cpu', video_path=None):
         combined_fake = 0.95
         combined_real = 0.05
     else:
-        nn_weight = 0.70
-        freq_weight = 0.30
+        nn_weight = VIDEO_NN_WEIGHT
+        freq_weight = VIDEO_FREQ_WEIGHT
         
         combined_fake = (avg_nn_fake * nn_weight) + (avg_freq * freq_weight)
         combined_real = (avg_nn_real * nn_weight) + ((1 - avg_freq) * freq_weight)
